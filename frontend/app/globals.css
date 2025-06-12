@@ -3,12 +3,19 @@
 /* These three directives are fundamental for Tailwind to inject its styles */
 /* @tailwind directives removed because they are not recognized by standard CSS processors.
    If you want to use Tailwind CSS, make sure your build process includes PostCSS with Tailwind CSS plugin. */
+/* app/globals.css */
+
+@import "tailwindcss";
+@import "tailwindcss/base";
+@import "tailwindcss/components";
+@import "tailwindcss/utilities";
+@import "tailwindcss/typography";
+@import "tailwindcss/forms";
 
 /* Your custom global CSS can go below these directives */
 html, body {
   padding: 0;
   margin: 0;
-  font-family: 'Inter', sans-serif; /* Example: setting a custom font */
 }
 
 /* Any other global styles */
