@@ -15,8 +15,8 @@ def handle_auth():
         return jsonify({'error': 'UID not provided'}), 400
 
     # For now, just log or return back
-    print(f"Received UID: {uid}")
-    return jsonify({'message': 'UID received', 'uid': uid}), 200
+    print(f"Received UID: {uid} and Email: {email}")
+    return jsonify({'message': 'UID received', 'uid': uid, 'email': email}), 200
 
 if __name__ == '__main__':
     app.run(debug=True)
