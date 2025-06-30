@@ -7,7 +7,13 @@ module.exports = {
     './app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
   theme: {
-    extend: {},
+    extend: {
+      colors: {
+        primary: '#1E3A8A',   // e.g., blue-800
+        secondary: '#F59E0B', // e.g., amber-500
+        tertiary: '#10B981',  // e.g., emerald-500
+      },
+    },
   },
   plugins: [
     require('@tailwindcss/typography'),

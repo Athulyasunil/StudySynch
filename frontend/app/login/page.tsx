@@ -1,4 +1,5 @@
 'use client';
+
 import { useState, useEffect } from 'react';
 import {
   signInWithEmailAndPassword,
@@ -7,6 +8,7 @@ import {
   signOut,
   User,
 } from 'firebase/auth';
+import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/firebase';
 
 export default function LoginPage() {
@@ -16,45 +18,43 @@ export default function LoginPage() {
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
+  const router = useRouter();
 
+  // ✅ Sync user to backend and redirect to /dashboard
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (user) => {
       setUser(user);
-      // Send UID to backend when user authenticates
+
       if (user) {
-        sendUIDToBackend(user.uid, user.email || '');
+        const syncAndRedirect = async () => {
+          try {
+            await fetch('/api/users/create', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                uid: user.uid,
+                email: user.email,
+              }),
+            });
+
+            router.push('/dashboard');
+          } catch (error) {
+            console.error('Failed to sync user to backend:', error);
+          }
+        };
+
+        syncAndRedirect();
       }
     });
+
     return () => unsubscribe();
-  }, []);
-
-  const sendUIDToBackend = async (uid: string, email: string) => {
-    try {
-      const res = await fetch('http://localhost:5000/auth', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ uid, email }),
-      });
-
-      if (!res.ok) {
-        throw new Error(`HTTP error! status: ${res.status}`);
-      }
-
-      const data = await res.json();
-      console.log('Backend response:', data);
-    } catch (err) {
-      console.error('Error sending UID to backend:', err);
-    }
-  };
+  }, [router]);
 
   const login = async () => {
     try {
       setLoading(true);
       setError('');
       await signInWithEmailAndPassword(auth, email, password);
-      // No need to call sendUIDToBackend here - it's handled in useEffect
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -67,7 +67,6 @@ export default function LoginPage() {
       setLoading(true);
       setError('');
       await createUserWithEmailAndPassword(auth, email, password);
-      // No need to call sendUIDToBackend here - it's handled in useEffect
     } catch (err: any) {
       setError(err.message);
     } finally {
@@ -90,29 +89,16 @@ export default function LoginPage() {
       setEmail('');
       setPassword('');
       setError('');
-    } catch (err: any) {
+    } catch {
       setError('Error signing out');
     }
   };
 
-  if (user) {
+  // ✅ Show loading or dashboard-like screen briefly
+  if (user && loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-cyan-50">
-        <div className="w-96 bg-white/80 backdrop-blur-sm shadow-2xl rounded-2xl p-8 border border-white/20">
-          <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-800 mb-2">Welcome!</h2>
-            <p className="text-gray-600 mb-4">You're successfully logged in</p>
-            <div className="bg-gray-50 rounded-lg p-3 text-sm text-gray-700 mb-6">
-              <strong>Email:</strong> {user.email}
-            </div>
-            <button
-              onClick={handleLogout}
-              className="w-full bg-gradient-to-r from-red-500 to-pink-600 text-white py-3 px-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200"
-            >
-              Sign Out
-            </button>
-          </div>
-        </div>
+      <div className="flex items-center justify-center h-screen text-xl font-medium">
+        Redirecting...
       </div>
     );
   }
@@ -140,55 +126,34 @@ export default function LoginPage() {
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-4">
-              <div>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="Enter your email"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all duration-200 bg-gray-50/50"
-                  required
-                />
-              </div>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Enter your email"
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none"
+              required
+            />
 
-              <div>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="Enter your password"
-                  className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-indigo-500 focus:border-transparent outline-none transition-all duration-200 bg-gray-50/50"
-                  required
-                />
-              </div>
-            </div>
-
-            {!isSignUp && (
-              <div className="text-right">
-                <button type="button" className="text-sm text-indigo-600 hover:text-indigo-800 font-medium transition-colors">
-                  Forgot Password?
-                </button>
-              </div>
-            )}
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Enter your password"
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none"
+              required
+            />
 
             <button
               type="submit"
               disabled={loading}
-              className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-3 px-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed disabled:transform-none"
+              className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-3 rounded-xl font-semibold hover:shadow-xl transition-all duration-200 disabled:opacity-50"
             >
-              {loading ? (
-                <div className="flex items-center justify-center">
-                  <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white mr-3"></div>
-                  {isSignUp ? 'Creating Account...' : 'Signing In...'}
-                </div>
-              ) : (
-                isSignUp ? 'Create Account' : 'Sign In'
-              )}
+              {loading ? (isSignUp ? 'Creating Account...' : 'Signing In...') : isSignUp ? 'Create Account' : 'Sign In'}
             </button>
           </form>
 
-          {/* Toggle Sign Up/Login */}
+          {/* Toggle */}
           <div className="mt-6 text-center">
             <p className="text-gray-600 text-sm">
               {isSignUp ? 'Already have an account?' : "Don't have an account?"}
@@ -200,14 +165,6 @@ export default function LoginPage() {
                 {isSignUp ? 'Sign In' : 'Sign Up'}
               </button>
             </p>
-          </div>
-
-          {/* Divider */}
-          <div className="mt-6 relative">
-            <div className="absolute inset-0 flex items-center">
-              <div className="w-full border-t border-gray-200"></div>
-            </div>
-
           </div>
         </div>
       </div>
