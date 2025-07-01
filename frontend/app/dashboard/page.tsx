@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
+import CreateRoom from '../components/createRoom';
+import RoomList from '../components/listrooms';
 
 export default function DashboardPage() {
   const [user, setUser] = useState<User | null>(null);
@@ -33,7 +35,8 @@ export default function DashboardPage() {
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100">
       <h1 className="text-3xl font-bold mb-4">Dashboard</h1>
       <p className="text-gray-600">Welcome to your dashboard, {user.email}!</p>
-
+      <CreateRoom/>
+      <RoomList/>
     </div>
   );
 }
