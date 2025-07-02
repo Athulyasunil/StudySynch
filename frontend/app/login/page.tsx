@@ -10,8 +10,13 @@ import {
 } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/firebase';
+import { getIdTokenResult } from "firebase/auth";
+import { useRef } from "react";
+
+
 
 export default function LoginPage() {
+  const [authChecked, setAuthChecked] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [user, setUser] = useState<User | null>(null);
@@ -20,30 +25,33 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const router = useRouter();
 
-  // ✅ Sync user to backend and redirect to /dashboard
+  const hasRedirected = useRef(false);
+
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, (user) => {
+    const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
+      setAuthChecked(true);
 
-      if (user) {
-        const syncAndRedirect = async () => {
-          try {
-            await fetch('/api/users/create', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({
-                uid: user.uid,
-                email: user.email,
-              }),
-            });
+      if (user && !hasRedirected.current) {
+        try {
+          // Optional: check token validity
+          const tokenResult = await getIdTokenResult(user);
+          if (!tokenResult || !tokenResult.token) return;
 
-            router.push('/dashboard');
-          } catch (error) {
-            console.error('Failed to sync user to backend:', error);
-          }
-        };
+          await fetch("/api/users/create", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              uid: user.uid,
+              email: user.email,
+            }),
+          });
 
-        syncAndRedirect();
+          hasRedirected.current = true;
+          router.push("/dashboard");
+        } catch (error) {
+          console.error("Failed to sync user to backend or redirect:", error);
+        }
       }
     });
 
@@ -95,13 +103,14 @@ export default function LoginPage() {
   };
 
   // ✅ Show loading or dashboard-like screen briefly
-  if (user && loading) {
+  if (authChecked && user) {
     return (
       <div className="flex items-center justify-center h-screen text-xl font-medium">
         Redirecting...
       </div>
     );
   }
+
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-cyan-50 p-4">
