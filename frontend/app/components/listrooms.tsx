@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { collection, query, where, onSnapshot, DocumentData } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import Link from 'next/link';
+import DeleteRoomButton from './room/DeleteButton';
 
 
 export default function RoomList() {
@@ -42,28 +43,32 @@ export default function RoomList() {
   }
 
   return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
-      {rooms.map((room) => (
-        <div key={room.id} className="h-full">
-          <Link href={`/room/${room.id}`}>
-            <div className="flex flex-col justify-between h-full p-4 bg-white rounded-xl shadow border border-gray-100 hover:shadow-lg transition cursor-pointer">
-              <div>
-                <h3 className="text-lg font-semibold text-indigo-700">{room.name}</h3>
-                {room.description && (
-                  <p className="text-gray-600 mt-1 text-sm">{room.description}</p>
-                )}
-              </div>
-              <p className="text-xs text-gray-400 mt-4">
-                Created at:{' '}
-                {room.createdAt?.toDate
-                  ? room.createdAt.toDate().toLocaleString()
-                  : 'N/A'}
-              </p>
-            </div>
-          </Link>
+  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 mt-6">
+    {rooms.map((room) => (
+      <div key={room.id} className="relative">
+        {/* Delete Button in Top-Right Corner */}
+        <div className="absolute top-2 right-2 z-10">
+          <DeleteRoomButton roomId={room.id} createdBy={room.createdBy} />
         </div>
-      ))}
-    </div>
 
-  );
+        <Link href={`/room/${room.id}`}>
+          <div className="flex flex-col justify-between h-full p-5 bg-white rounded-xl shadow-md hover:shadow-lg border border-gray-100 transition-all cursor-pointer hover:-translate-y-1 duration-200">
+            <div>
+              <h3 className="text-xl font-semibold text-indigo-700 mb-1">{room.name}</h3>
+              {room.description && (
+                <p className="text-gray-600 text-sm mb-4">{room.description}</p>
+              )}
+            </div>
+            <p className="text-xs text-gray-400">
+              Created at:{' '}
+              {room.createdAt?.toDate
+                ? room.createdAt.toDate().toLocaleString()
+                : 'N/A'}
+            </p>
+          </div>
+        </Link>
+      </div>
+    ))}
+  </div>
+);
 }

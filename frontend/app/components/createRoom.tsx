@@ -29,6 +29,7 @@ export default function CreateRoom() {
         name: name.trim(),
         description: description.trim(),
         createdBy: user.uid,
+        members: [user.uid],
         createdAt: serverTimestamp(),
       });
       setMessage('Room created!');
