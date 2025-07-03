@@ -7,13 +7,14 @@ import {
   onAuthStateChanged,
   signOut,
   User,
+  setPersistence,
+  browserSessionPersistence,
+  browserLocalPersistence
 } from 'firebase/auth';
 import { useRouter } from 'next/navigation';
 import { auth } from '@/lib/firebase';
 import { getIdTokenResult } from "firebase/auth";
 import { useRef } from "react";
-
-
 
 export default function LoginPage() {
   const [authChecked, setAuthChecked] = useState(false);
@@ -28,36 +29,58 @@ export default function LoginPage() {
   const hasRedirected = useRef(false);
 
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (user) => {
-      setUser(user);
-      setAuthChecked(true);
+    // Set session persistence (won't persist when browser/tab closes)
+    setPersistence(auth, browserSessionPersistence)
+      .then(() => {
+        const unsubscribe = onAuthStateChanged(auth, async (user) => {
+          setUser(user);
+          setAuthChecked(true);
 
-      if (user && !hasRedirected.current) {
-        try {
-          // Optional: check token validity
-          const tokenResult = await getIdTokenResult(user);
-          if (!tokenResult || !tokenResult.token) return;
+          if (user && !hasRedirected.current) {
+            try {
+              const tokenResult = await getIdTokenResult(user);
+              if (!tokenResult?.token) {
+                await signOut(auth);
+                return;
+              }
 
-          await fetch("/api/users/create", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-              uid: user.uid,
-              email: user.email,
-            }),
-          });
+              await fetch("/api/users/create", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  uid: user.uid,
+                  email: user.email,
+                }),
+              });
 
-          hasRedirected.current = true;
-          router.push("/dashboard");
-        } catch (error) {
-          console.error("Failed to sync user to backend or redirect:", error);
-        }
-      }
-    });
+              hasRedirected.current = true;
+              router.push("/dashboard");
+            } catch (error) {
+              console.error("Auth error:", error);
+              await signOut(auth);
+            }
+          }
+        });
 
-    return () => unsubscribe();
+        return () => unsubscribe();
+      })
+      .catch((error) => {
+        console.error("Persistence setting error:", error);
+      });
+
   }, [router]);
 
+  // Add this to ensure clean logout when page refreshes
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      signOut(auth).catch(console.error);
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, []);
   const login = async () => {
     try {
       setLoading(true);
@@ -102,16 +125,22 @@ export default function LoginPage() {
     }
   };
 
-  // ✅ Show loading or dashboard-like screen briefly
-  if (authChecked && user) {
+ 
+  if (!authChecked) {
     return (
       <div className="flex items-center justify-center h-screen text-xl font-medium">
-        Redirecting...
+        Checking authentication...
       </div>
     );
   }
 
-
+  if (user) {
+    return (
+      <div className="flex items-center justify-center h-screen text-xl font-medium">
+        Redirecting to dashboard...
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-cyan-50 p-4">
       <div className="w-full max-w-md">
