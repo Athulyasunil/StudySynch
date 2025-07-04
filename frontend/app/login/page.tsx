@@ -54,7 +54,9 @@ export default function LoginPage() {
               });
 
               hasRedirected.current = true;
-              router.push("/dashboard");
+              const redirectPath = localStorage.getItem('redirectAfterLogin') || '/dashboard';
+              localStorage.removeItem('redirectAfterLogin');
+              router.push(redirectPath);
             } catch (error) {
               console.error("Auth error:", error);
               await signOut(auth);

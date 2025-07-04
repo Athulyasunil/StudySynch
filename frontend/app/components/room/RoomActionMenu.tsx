@@ -6,6 +6,8 @@ import { auth, db } from '@/lib/firebase';
 import { doc, deleteDoc, updateDoc, arrayRemove } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { useState } from 'react';
+import InviteModal from './InviteModal';
 
 interface RoomActionsMenuProps {
   roomId: string;
@@ -13,6 +15,7 @@ interface RoomActionsMenuProps {
 }
 
 export default function RoomActionsMenu({ roomId, isCreator }: RoomActionsMenuProps) {
+  const [inviteOpen, setInviteOpen] = useState(false);
   const router = useRouter();
 
   const handleDelete = async () => {
@@ -44,10 +47,13 @@ export default function RoomActionsMenu({ roomId, isCreator }: RoomActionsMenuPr
   };
 
   const handleInvite = () => {
-    toast('Invite feature coming soon!');
+    setInviteOpen(true);
   };
 
+
+
   return (
+    <div>
     <Menu as="div" className="relative inline-block text-left">
       <Menu.Button className="p-2 rounded-full hover:bg-gray-200 transition">
         <MoreVertical className="w-5 h-5 text-gray-700" />
@@ -103,5 +109,7 @@ export default function RoomActionsMenu({ roomId, isCreator }: RoomActionsMenuPr
         </div>
       </Menu.Items>
     </Menu>
+    <InviteModal roomId={roomId} open={inviteOpen} setOpen={setInviteOpen} />
+    </div>
   );
 }
