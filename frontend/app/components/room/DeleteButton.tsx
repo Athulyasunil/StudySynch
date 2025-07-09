@@ -1,6 +1,6 @@
 'use client';
 
-import { deleteDoc, doc } from 'firebase/firestore';
+import { deleteDoc, doc, getDoc, updateDoc, arrayRemove } from 'firebase/firestore';
 import { db, auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import { Trash2 } from 'lucide-react'; // or use any other icon lib
@@ -23,13 +23,36 @@ export default function DeleteRoomButton({
     if (!confirm) return;
 
     try {
-      await deleteDoc(doc(db, 'rooms', roomId));
-      router.refresh();
+      const roomRef = doc(db, 'rooms', roomId);
+      const roomSnap = await getDoc(roomRef);
+
+      if (!roomSnap.exists()) {
+        console.error('Room does not exist');
+        return;
+      }
+
+      const roomData = roomSnap.data();
+      const members = roomData.members || [];
+
+      // Remove the roomId from all members' user documents
+      const updates = members.map((uid: string) =>
+        updateDoc(doc(db, 'users', uid), {
+          rooms: arrayRemove(roomId),
+        })
+      );
+      await Promise.all(updates);
+
+      // Delete the room document
+      await deleteDoc(roomRef);
+
       router.push('/dashboard');
+      router.refresh();
     } catch (err) {
       console.error('Error deleting room:', err);
     }
   };
+// TODO: Delete notes and messages once implemented
+
 
   return (
     <button onClick={handleDelete} className="text-red-500 hover:text-red-700 p-2">

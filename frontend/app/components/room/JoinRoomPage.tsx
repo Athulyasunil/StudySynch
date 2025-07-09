@@ -1,14 +1,14 @@
+// /components/room/JoinRoomPage.tsx (Client Component)
 'use client';
+
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { onAuthStateChanged } from 'firebase/auth';
 import { auth, db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc, arrayUnion } from 'firebase/firestore';
 
-export default function JoinRoomPage({ params }: { params: { roomId: string } }) {
-  const { roomId } = params;
+export default function JoinRoomPage({ roomId }: { roomId: string }) {
   const router = useRouter();
-
   const [room, setRoom] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [joining, setJoining] = useState(false);
@@ -37,7 +37,7 @@ export default function JoinRoomPage({ params }: { params: { roomId: string } })
     });
 
     return () => unsubscribe();
-  }, [roomId]);
+  }, [roomId, router]);
 
   const handleJoin = async () => {
     const user = auth.currentUser;
@@ -49,10 +49,6 @@ export default function JoinRoomPage({ params }: { params: { roomId: string } })
       await updateDoc(roomRef, {
         members: arrayUnion(user.uid),
       });
-      await updateDoc(doc(db, 'users', user.uid), {
-        rooms: arrayUnion(roomId),
-      });
-
       router.push(`/room/${roomId}`);
     } catch (err) {
       setError('Failed to join room.');

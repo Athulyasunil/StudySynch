@@ -5,24 +5,33 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { uid, email } = body;
+    const { uid, email, username } = body;
 
-    if (!uid || !email) {
-      return NextResponse.json({ error: 'Missing uid or email' }, { status: 400 });
+    if (!uid || !email ) {
+      return NextResponse.json({ error: 'Missing uid, email or username' }, { status: 400 });
     }
 
     const userRef = doc(db, 'users', uid);
     const userSnap = await getDoc(userRef);
 
     if (!userSnap.exists()) {
-      await setDoc(userRef, {
+      const userData: any = {
         email,
+        uid,
         createdAt: new Date().toISOString(),
         rooms: [],
         notes: [],
-      });
+      };
+
+      if (username) {
+        userData.username = username;
+      }
+
+      await setDoc(userRef, userData);
+
       return NextResponse.json({ created: true, message: 'User added' });
     }
+
 
     return NextResponse.json({ created: false, message: 'User already exists' });
   } catch (error) {

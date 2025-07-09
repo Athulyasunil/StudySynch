@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { addDoc,updateDoc, collection, serverTimestamp } from 'firebase/firestore';
-import { auth, db } from '@/lib/firebase';
+import { addDoc,updateDoc, collection, serverTimestamp, arrayUnion, doc } from 'firebase/firestore';
+import { auth, db, } from '@/lib/firebase';
 
 export default function CreateRoom() {
   const [open, setOpen] = useState(false);
@@ -32,7 +32,9 @@ export default function CreateRoom() {
         members: [user.uid],
         createdAt: serverTimestamp(),
       });
-
+      await updateDoc(doc(db, 'users', user.uid), {
+          rooms: arrayUnion(docRef.id),
+        });
       // Now update the document with its own ID
       await updateDoc(docRef, {
         roomId: docRef.id,

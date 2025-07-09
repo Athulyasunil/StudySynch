@@ -1,88 +1,81 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
-  signInWithEmailAndPassword,
-  createUserWithEmailAndPassword,
   onAuthStateChanged,
-  signOut,
-  User,
   setPersistence,
   browserSessionPersistence,
-  browserLocalPersistence
+  signOut,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
+  User,
+  getIdTokenResult,
 } from 'firebase/auth';
-import { useRouter } from 'next/navigation';
+
 import { auth } from '@/lib/firebase';
-import { getIdTokenResult } from "firebase/auth";
-import { useRef } from "react";
+import AuthForm from '@/app/components/auth/AuthForm';
 
 export default function LoginPage() {
+  const router = useRouter();
   const [authChecked, setAuthChecked] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [user, setUser] = useState<User | null>(null);
   const [isSignUp, setIsSignUp] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  const router = useRouter();
-
+  const [username, setUsername] = useState('');
   const hasRedirected = useRef(false);
 
+
   useEffect(() => {
-    // Set session persistence (won't persist when browser/tab closes)
     setPersistence(auth, browserSessionPersistence)
       .then(() => {
         const unsubscribe = onAuthStateChanged(auth, async (user) => {
-          setUser(user);
-          setAuthChecked(true);
+            setUser(user);
+            setAuthChecked(true);
 
-          if (user && !hasRedirected.current) {
-            try {
-              const tokenResult = await getIdTokenResult(user);
-              if (!tokenResult?.token) {
-                await signOut(auth);
-                return;
-              }
+            if (user && !hasRedirected.current) {
+    try {
+      const tokenResult = await getIdTokenResult(user);
+      if (!tokenResult?.token) {
+        await signOut(auth);
+        return;
+      }
 
-              await fetch("/api/users/create", {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({
-                  uid: user.uid,
-                  email: user.email,
-                }),
-              });
+      const justSignedUp = localStorage.getItem('justSignedUp') === 'true';
+      const newUsername = localStorage.getItem('newUsername');
 
-              hasRedirected.current = true;
-              const redirectPath = localStorage.getItem('redirectAfterLogin') || '/dashboard';
-              localStorage.removeItem('redirectAfterLogin');
-              router.push(redirectPath);
-            } catch (error) {
-              console.error("Auth error:", error);
-              await signOut(auth);
-            }
-          }
-        });
-
-        return () => unsubscribe();
-      })
-      .catch((error) => {
-        console.error("Persistence setting error:", error);
+      await fetch('/api/users/create', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          uid: user.uid,
+          email: user.email,
+          ...(justSignedUp && newUsername ? { username: newUsername } : {}),
+        }),
       });
 
+      // Cleanup
+      localStorage.removeItem('newUsername');
+      localStorage.removeItem('justSignedUp');
+
+      hasRedirected.current = true;
+      const redirectPath = localStorage.getItem('redirectAfterLogin') || '/dashboard';
+      localStorage.removeItem('redirectAfterLogin');
+      router.push(redirectPath);
+    } catch (err) {
+      console.error(err);
+      await signOut(auth);
+    }
+  }
+});
+        return () => unsubscribe();
+      })
+      .catch(console.error);
   }, [router]);
 
-  // Add this to ensure clean logout when page refreshes
-  useEffect(() => {
-    const handleBeforeUnload = () => {
-      signOut(auth).catch(console.error);
-    };
-
-    window.addEventListener('beforeunload', handleBeforeUnload);
-    return () => {
-      window.removeEventListener('beforeunload', handleBeforeUnload);
-    };
-  }, []);
   const login = async () => {
     try {
       setLoading(true);
@@ -94,11 +87,14 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
-
   const signUp = async () => {
     try {
       setLoading(true);
       setError('');
+
+      localStorage.setItem('newUsername', username);
+      localStorage.setItem('justSignedUp', 'true');
+
       await createUserWithEmailAndPassword(auth, email, password);
     } catch (err: any) {
       setError(err.message);
@@ -106,9 +102,8 @@ export default function LoginPage() {
       setLoading(false);
     }
   };
-
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  
+  const handleSubmit = () => {
     if (isSignUp) {
       signUp();
     } else {
@@ -116,18 +111,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleLogout = async () => {
-    try {
-      await signOut(auth);
-      setEmail('');
-      setPassword('');
-      setError('');
-    } catch {
-      setError('Error signing out');
-    }
-  };
-
- 
   if (!authChecked) {
     return (
       <div className="flex items-center justify-center h-screen text-xl font-medium">
@@ -143,71 +126,24 @@ export default function LoginPage() {
       </div>
     );
   }
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-cyan-50 p-4">
-      <div className="w-full max-w-md">
-        <div className="bg-white/80 backdrop-blur-sm shadow-2xl rounded-2xl p-8 border border-white/20">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-              {isSignUp ? 'Create Account' : 'Welcome Back'}
-            </h1>
-            <p className="text-gray-600 mt-2">
-              {isSignUp ? 'Start your journey with us' : 'Sign in to your account'}
-            </p>
-          </div>
 
-          {/* Error Message */}
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-              {error}
-            </div>
-          )}
-
-          {/* Form */}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Enter your email"
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none"
-              required
-            />
-
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Enter your password"
-              className="w-full px-4 py-3 border border-gray-200 rounded-xl bg-gray-50/50 focus:ring-2 focus:ring-indigo-500 outline-none"
-              required
-            />
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-gradient-to-r from-indigo-500 to-purple-600 text-white py-3 rounded-xl font-semibold hover:shadow-xl transition-all duration-200 disabled:opacity-50"
-            >
-              {loading ? (isSignUp ? 'Creating Account...' : 'Signing In...') : isSignUp ? 'Create Account' : 'Sign In'}
-            </button>
-          </form>
-
-          {/* Toggle */}
-          <div className="mt-6 text-center">
-            <p className="text-gray-600 text-sm">
-              {isSignUp ? 'Already have an account?' : "Don't have an account?"}
-              <button
-                type="button"
-                className="ml-2 text-indigo-600 hover:text-indigo-800 font-semibold transition-colors"
-                onClick={() => setIsSignUp(!isSignUp)}
-              >
-                {isSignUp ? 'Sign In' : 'Sign Up'}
-              </button>
-            </p>
-          </div>
-        </div>
-      </div>
+return (
+  <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-indigo-50 via-white to-cyan-50 p-4">
+    <div className="w-full max-w-md">
+      <AuthForm
+        isSignUp={isSignUp}
+        email={email}
+        password={password}
+        username={username}
+        loading={loading}
+        error={error}
+        setEmail={setEmail}
+        setPassword={setPassword}
+        setUsername={setUsername}
+        onSubmit={handleSubmit}
+        toggleMode={() => setIsSignUp((prev) => !prev)}
+      />
     </div>
-  );
+  </div>
+);
 }
