@@ -1,57 +1,95 @@
-"use client";
+'use client';
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from 'react';
+
+type Message = {
+  sender: 'user' | 'bot';
+  text: string;
+};
 
 export default function AI({ roomId }: { roomId: string }) {
-  const [messages, setMessages] = useState<{ sender: "user" | "bot"; text: string }[]>([]);
-  const [input, setInput] = useState("");
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [input, setInput] = useState('');
+  const [loading, setLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement | null>(null);
 
-  const handleSend = () => {
+  const handleSend = async () => {
     if (!input.trim()) return;
 
-    const userMessage: { sender: "user" | "bot"; text: string } = { sender: "user", text: input };
+    const userMessage: Message = { sender: 'user', text: input };
     setMessages((prev) => [...prev, userMessage]);
+    setInput('');
+    setLoading(true);
 
-    // Simulate bot response (replace with real API call)
-    setTimeout(() => {
-      const botReply: { sender: "user" | "bot"; text: string } = { sender: "bot", text: `You said: "${input}"` };
+    try {
+      const res = await fetch('/api/ai/prompt', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt: input, roomId }),
+      });
+
+      const data = await res.json();
+      const botReply: Message = {
+        sender: 'bot',
+        text: data.reply || 'No response received.',
+      };
+
       setMessages((prev) => [...prev, botReply]);
-    }, 500);
-
-    setInput("");
+    } catch (err) {
+      setMessages((prev) => [
+        ...prev,
+        { sender: 'bot', text: '❌ Failed to connect to AI.' },
+      ]);
+    } finally {
+      setLoading(false);
+    }
   };
 
+  // Auto-scroll to bottom
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [messages]);
+
   return (
-    <div className="max-w-xl mx-auto p-4 border rounded-2xl shadow-md h-[80vh] flex flex-col">
-      <h2 className="text-xl font-semibold mb-4">AI Chat - Room ID: {roomId}</h2>
-      <div className="flex-1 overflow-y-auto space-y-2 bg-gray-50 p-3 rounded-lg">
+    <div className="flex flex-col h-[calc(100vh-64px)] max-w-5xl mx-auto px-4 pb-4">
+      {/* Messages area */}
+      <div className="flex-1 overflow-y-auto space-y-3 py-4 pr-1">
+
         {messages.map((msg, idx) => (
           <div
             key={idx}
-            className={`p-2 rounded-md max-w-xs ${
-              msg.sender === "user"
-                ? "ml-auto bg-blue-500 text-white"
-                : "mr-auto bg-gray-300 text-black"
+            className={`max-w-sm px-4 py-2 rounded-2xl text-sm break-words ${
+              msg.sender === 'user'
+                ? 'ml-auto bg-blue-600 text-white'
+                : 'mr-auto bg-gray-200 text-gray-800'
             }`}
           >
             {msg.text}
           </div>
         ))}
+        <div ref={messagesEndRef} />
       </div>
-      <div className="flex items-center mt-4">
-        <input
-          className="flex-1 border border-gray-300 p-2 rounded-l-md"
-          placeholder="Type a message..."
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          onKeyDown={(e) => e.key === "Enter" && handleSend()}
-        />
-        <button
-          className="bg-blue-500 text-white px-4 py-2 rounded-r-md hover:bg-blue-600"
-          onClick={handleSend}
-        >
-          Send
-        </button>
+
+      {/* Sticky input bar */}
+      <div className="mt-auto border-t pt-3 bg-white sticky bottom-0 z-10">
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            placeholder="Type your message..."
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleSend()}
+            className="flex-1 p-3 border rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+            disabled={loading}
+          />
+          <button
+            onClick={handleSend}
+            disabled={loading || !input.trim()}
+            className="bg-blue-600 text-white px-4 py-2 rounded-xl hover:bg-blue-700 disabled:opacity-50"
+          >
+            {loading ? '...' : 'Send'}
+          </button>
+        </div>
       </div>
     </div>
   );
