@@ -1,6 +1,6 @@
 // lib/firebase.ts
 import { initializeApp, getApps } from 'firebase/app';
-import { getAuth } from 'firebase/auth';
+import { getAuth, } from 'firebase/auth';
 import { Firestore, getFirestore } from 'firebase/firestore';
 
 const firebaseConfig = {
@@ -15,5 +15,6 @@ const firebaseConfig = {
 const app = getApps().length ? getApps()[0] : initializeApp(firebaseConfig);
  const db =  getFirestore(app);
  const auth = getAuth(app);
-
- export {db, auth}
+import { getStorage } from 'firebase/storage';
+const storage = getStorage(app);
+ export {db, auth, storage}
